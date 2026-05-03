@@ -2,15 +2,20 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: todo-app
-  namespace: argocd1
+  namespace: argocd
+
 spec:
-  destination:
-    server: https://devtodoaks-rrmxx7u9.hcp.westus2.azmk8s.io
-    namespace: argocd1
+  project: default
+
   source:
-    repoURL: https://github.com/Gaurav666999/DeltaDental/deltadentalapplication/manifest
+    repoURL: https://github.com/Gaurav666999/deltadental_infra_repo
     targetRevision: HEAD
-    path: k8s
+    path: app/manifest   # 👈 adjust karna hai
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd1
+
   syncPolicy:
     automated:
       prune: false
