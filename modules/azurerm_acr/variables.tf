@@ -1,4 +1,4 @@
-variables "acrs" {
+variable "acrs" {
     type = map(any)
 }
 

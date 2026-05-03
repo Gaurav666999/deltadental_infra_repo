@@ -1,21 +1,16 @@
 terraform {
   required_providers {
     azurerm = {
-        source = "hashicorp/azurerm"
-        version = "4.15.0"
+      source  = "hashicorp/azurerm"
+      version = "4.70.0"
     }
-  }
-  backend "azurerm" {
-    resource_group_name  = "rgchikni1"              # Can be passed via `-backend-config=`"resource_group_name=<resource group name>"` in the `init` command.
-    storage_account_name = "stbackend112"         # Can be passed via `-backend-config=`"storage_account_name=<storage account name>"` in the `init` command.
-    container_name       = "container112"       # Can be passed via `-backend-config=`"container_name=<container name>"` in the `init` command.
-    key                  = "dev.terraform.tfstate"  # Can be passed via `-backend-config=`"key=<blob key name>"` in the `init` command.  
   }
 }
 
 provider "azurerm" {
   features {}
-  subscription_id = "2186149b-5179-4575-9e84-36d8dc33605e"
+  subscription_id                 = "20cadb7c-62d8-4c57-9b49-63ebd307c63e"
+  resource_provider_registrations = "none"
 }
 
 

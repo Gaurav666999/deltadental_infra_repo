@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: todo-app
+  namespace: argocd1
+spec:
+  destination:
+    server: https://devtodoaks-rrmxx7u9.hcp.westus2.azmk8s.io
+    namespace: argocd1
+  source:
+    repoURL: https://github.com/Gaurav666999/DeltaDental/deltadentalapplication/manifest
+    targetRevision: HEAD
+    path: k8s
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false

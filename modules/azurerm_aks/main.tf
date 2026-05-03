@@ -16,13 +16,15 @@ identity {
     type = "SystemAssigned"
 }
 
-network _profile {
+network_profile {
     network_plugin = "azure"
     network_policy = "calico"
 }
 tags = each.value.tags
 
 }
+
+
 
 
 
