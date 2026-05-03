@@ -57,6 +57,11 @@ jobs:
       - name: Push Micro Image
         run: docker push $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
 
+      # 📦 Install kubectl (IMPORTANT)
+      - name: Install kubectl
+        run: |
+          az aks install-cli
+
       # 🚀 SET AKS CONTEXT
       - name: Get AKS Credentials
         run: |
