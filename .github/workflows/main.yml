@@ -34,7 +34,7 @@ jobs:
         run: |
           az acr login --name $ACR_NAME
 
-      # 🔥 ADD SERVICE (FIXED)
+      # 🔥 ADD SERVICE
       - name: Build Add Image
         run: |
           docker build -t $IMAGE_NAME:$IMAGE_TAG -f app/Add/Dockerfile app
@@ -50,7 +50,7 @@ jobs:
       # 🔥 MICRO SERVICE
       - name: Build Micro Image
         run: |
-          docker build -t $IMAGE_NAME1:$IMAGE_TAG1 ./app/Micro
+          docker build -t $IMAGE_NAME1:$IMAGE_TAG1 -f app/Micro/Dockerfile app/Micro
 
       - name: Tag Micro Image
         run: |
@@ -60,12 +60,12 @@ jobs:
         run: |
           docker push $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
 
-      # 🚀 DEPLOY
+      # 🚀 DEPLOY (FIXED PATH)
       - name: Deploy to AKS
         run: |
           az aks command invoke \
             --resource-group psddg \
             --name devtodoakswestus \
-            --command "kubectl apply -f manifest/deployment.yaml && kubectl apply -f manifest/service.yaml" \
-            --file manifest/deployment.yaml \
-            --file manifest/service.yaml
+            --command "kubectl apply -f app/manifest/deployment.yaml && kubectl apply -f app/manifest/service.yaml" \
+            --file app/manifest/deployment.yaml \
+            --file app/manifest/service.yaml
