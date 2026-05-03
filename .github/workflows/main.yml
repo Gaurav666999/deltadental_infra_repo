@@ -18,11 +18,14 @@ jobs:
       IMAGE_TAG1: v0
       ACR_NAME: devtodoacrwestus
       ACR_LOGIN_SERVER: devtodoacrwestus.azurecr.io
+      RESOURCE_GROUP: psddg
+      AKS_NAME: devtodoakswestus
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # 🔐 Azure Login
       - name: Azure Login
         uses: Azure/login@v2
         with:
@@ -30,42 +33,40 @@ jobs:
           tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
+      # 🔑 Login to ACR
       - name: Login to ACR
-        run: |
-          az acr login --name $ACR_NAME
+        run: az acr login --name $ACR_NAME
 
-      # 🔥 ADD SERVICE
+      # 🔥 BUILD + PUSH ADD SERVICE
       - name: Build Add Image
-        run: |
-          docker build -t $IMAGE_NAME:$IMAGE_TAG -f app/Add/Dockerfile app
+        run: docker build -t $IMAGE_NAME:$IMAGE_TAG -f app/Add/Dockerfile app
 
       - name: Tag Add Image
-        run: |
-          docker tag $IMAGE_NAME:$IMAGE_TAG $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
+        run: docker tag $IMAGE_NAME:$IMAGE_TAG $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
 
       - name: Push Add Image
-        run: |
-          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
+        run: docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
 
-      # 🔥 MICRO SERVICE
+      # 🔥 BUILD + PUSH MICRO SERVICE
       - name: Build Micro Image
-        run: |
-          docker build -t $IMAGE_NAME1:$IMAGE_TAG1 -f app/Micro/Dockerfile app/Micro
+        run: docker build -t $IMAGE_NAME1:$IMAGE_TAG1 -f app/Micro/Dockerfile app/Micro
 
       - name: Tag Micro Image
-        run: |
-          docker tag $IMAGE_NAME1:$IMAGE_TAG1 $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
+        run: docker tag $IMAGE_NAME1:$IMAGE_TAG1 $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
 
       - name: Push Micro Image
-        run: |
-          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
+        run: docker push $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
 
-      # 🚀 DEPLOY (FIXED PATH)
+      # 🚀 SET AKS CONTEXT
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group $RESOURCE_GROUP \
+            --name $AKS_NAME \
+            --overwrite-existing
+
+      # 🚀 DEPLOY TO AKS
       - name: Deploy to AKS
         run: |
-          az aks command invoke \
-            --resource-group psddg \
-            --name devtodoakswestus \
-            --command "kubectl apply -f app/manifest/deployment.yaml && kubectl apply -f app/manifest/service.yaml" \
-            --file app/manifest/deployment.yaml \
-            --file app/manifest/service.yaml
+          kubectl apply -f app/manifest/
+          kubectl get pods -A
