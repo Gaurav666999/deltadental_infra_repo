@@ -5,18 +5,19 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install only essential system dependencies
+# Install system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# 👇 IMPORTANT: now this will work because context = app
 COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# 👇 Copy only Add service code
+COPY Add/ .
 
 EXPOSE 8000
 
