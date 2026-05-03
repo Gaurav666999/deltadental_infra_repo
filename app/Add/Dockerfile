@@ -11,12 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# 👇 IMPORTANT: now this will work because context = app
+# requirements.txt is in app/
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 👇 Copy only Add service code
+# copy Add service code
 COPY Add/ .
 
 EXPOSE 8000
