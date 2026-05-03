@@ -36,7 +36,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t $IMAGE_NAME:$IMAGE_TAG ./Add
+          docker build -t $IMAGE_NAME:$IMAGE_TAG ./app/Add
 
       - name: Tag Docker Image for ACR
         run: |
@@ -50,7 +50,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t $IMAGE_NAME1:$IMAGE_TAG1 ./Micro
+          docker build -t $IMAGE_NAME1:$IMAGE_TAG1 ./app/Micro
 
       - name: Tag Docker Image for ACR
         run: |
