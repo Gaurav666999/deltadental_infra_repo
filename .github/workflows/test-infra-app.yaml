@@ -1,0 +1,102 @@
+name: Infra + Build + Deploy to AKS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      ADD_IMAGE_NAME: add-task
+      MICRO_IMAGE_NAME: micro-ui
+
+      IMAGE_TAG: ${{ github.sha }}
+
+      ACR_NAME: devtodoacrwestus
+      ACR_LOGIN_SERVER: devtodoacrwestus.azurecr.io
+
+      RESOURCE_GROUP: psddg
+      AKS_NAME: devtodoakswestus
+
+    steps:
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: 6c2702c6-118e-4640-aba9-86e61333ba0d
+          tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
+          subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: environments/dev
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: environments/dev
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: environments/dev
+        run: terraform plan
+
+      # SAFE MODE
+      # Enable after testing
+
+      # - name: Terraform Apply
+      #   working-directory: environments/dev
+      #   run: terraform apply -auto-approve
+
+      - name: Login to ACR
+        run: |
+          az acr login --name $ACR_NAME
+
+      - name: Build Add Image
+        run: |
+          docker build \
+          -t $ACR_LOGIN_SERVER/$ADD_IMAGE_NAME:$IMAGE_TAG \
+          -f app/Add/Dockerfile app
+
+      - name: Push Add Image
+        run: |
+          docker push $ACR_LOGIN_SERVER/$ADD_IMAGE_NAME:$IMAGE_TAG
+
+      - name: Build Micro Image
+        run: |
+          docker build \
+          -t $ACR_LOGIN_SERVER/$MICRO_IMAGE_NAME:$IMAGE_TAG \
+          -f app/Micro/Dockerfile app/Micro
+
+      - name: Push Micro Image
+        run: |
+          docker push $ACR_LOGIN_SERVER/$MICRO_IMAGE_NAME:$IMAGE_TAG
+
+      - name: Install kubectl
+        run: |
+          az aks install-cli
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group $RESOURCE_GROUP \
+            --name $AKS_NAME \
+            --overwrite-existing
+
+      - name: Deploy to AKS
+        run: |
+          kubectl apply -f app/manifest/
+
+      - name: Verify Deployment
+        run: |
+          kubectl get pods -A
+          kubectl get svc -A
