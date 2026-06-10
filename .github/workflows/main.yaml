@@ -33,9 +33,9 @@ jobs:
           tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
-      # 🔑 Login to ACR
-      #- name: Login to ACR
-      #  run: az acr login --name $ACR_NAME
+       #🔑 Login to ACR
+      - name: Login to ACR
+        run: az acr login --name $ACR_NAME
 
       # 🔥 BUILD + PUSH ADD SERVICE
       - name: Build Add Image
@@ -71,15 +71,9 @@ jobs:
             --overwrite-existing
 
       # 🚀 DEPLOY TO AKS
-      #- name: Deploy to AKS
-      #  run: |
-      #    kubectl apply -f app/manifest/
-      #    kubectl get pods -A
-      
-      # 🚀 DEPLOY TO AKS
-      - name: Deploy to AKS using ARGO CD
+      - name: Deploy to AKS
         run: |
-          kubectl apply -f application.yaml
-          kubectl get applications -n argocd
-          kubectl port-forward svc/argocd-server -n argocd 8080:443
-          https://localhost:8080
+          kubectl apply -f app/manifest/
+          kubectl get pods -A
+      
+      
