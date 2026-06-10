@@ -34,8 +34,8 @@ jobs:
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
       # 🔑 Login to ACR
-      - name: Login to ACR
-        run: az acr login --name $ACR_NAME
+      #- name: Login to ACR
+      #  run: az acr login --name $ACR_NAME
 
       # 🔥 BUILD + PUSH ADD SERVICE
       - name: Build Add Image
