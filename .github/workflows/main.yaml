@@ -1,31 +1,37 @@
-name: Build and Push to ACR
+name: Build Push and Deploy using ArgoCD
 
 on:
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     env:
       IMAGE_NAME: add-task
-      IMAGE_TAG: v0
       IMAGE_NAME1: micro-ui
-      IMAGE_TAG1: v0
+
+      IMAGE_TAG: ${{ github.run_number }}
+      IMAGE_TAG1: ${{ github.run_number }}
+
       ACR_NAME: devtodoacrwestus
       ACR_LOGIN_SERVER: devtodoacrwestus.azurecr.io
-      RESOURCE_GROUP: psddg
-      AKS_NAME: devtodoakswestus
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
-      # 🔐 Azure Login
+      # Checkout Code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Azure Login using OIDC
       - name: Azure Login
         uses: Azure/login@v2
         with:
@@ -33,47 +39,48 @@ jobs:
           tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
-       #🔑 Login to ACR
+      # Login to Azure Container Registry
       - name: Login to ACR
-        run: az acr login --name $ACR_NAME
+        run: |
+          az acr login --name $ACR_NAME
 
-      # 🔥 BUILD + PUSH ADD SERVICE
+      # Build Add Service Image
       - name: Build Add Image
-        run: docker build -t $IMAGE_NAME:$IMAGE_TAG -f app/Add/Dockerfile app
+        run: |
+          docker build \
+            -t $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG \
+            -f app/Add/Dockerfile app
 
-      - name: Tag Add Image
-        run: docker tag $IMAGE_NAME:$IMAGE_TAG $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
-
+      # Push Add Service Image
       - name: Push Add Image
-        run: docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
-
-      # 🔥 BUILD + PUSH MICRO SERVICE
-      - name: Build Micro Image
-        run: docker build -t $IMAGE_NAME1:$IMAGE_TAG1 -f app/Micro/Dockerfile app/Micro
-
-      - name: Tag Micro Image
-        run: docker tag $IMAGE_NAME1:$IMAGE_TAG1 $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
-
-      - name: Push Micro Image
-        run: docker push $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
-
-      # 📦 Install kubectl (IMPORTANT)
-      - name: Install kubectl
         run: |
-          az aks install-cli
+          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
 
-      # 🚀 SET AKS CONTEXT
-      - name: Get AKS Credentials
+      # Build Micro UI Image
+      - name: Build Micro UI Image
         run: |
-          az aks get-credentials \
-            --resource-group $RESOURCE_GROUP \
-            --name $AKS_NAME \
-            --overwrite-existing
+          docker build \
+            -t $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1 \
+            -f app/Micro/Dockerfile app/Micro
 
-      # 🚀 DEPLOY TO AKS
-      - name: Deploy to AKS
+      # Push Micro UI Image
+      - name: Push Micro UI Image
         run: |
-          kubectl apply -f app/manifest/
-          kubectl get pods -A
-      
-      
+          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
+
+      # Update Kubernetes Deployment Manifest
+      - name: Update Deployment Manifest
+        run: |
+          sed -i "s|image:.*add-task.*|image: $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG|g" app/manifest/deployment.yaml
+
+      # Commit Updated Manifest
+      - name: Commit and Push Manifest Changes
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+
+          git add app/manifest/deployment.yaml
+
+          git commit -m "Updated image tag to $IMAGE_TAG" || echo "No changes to commit"
+
+          git push
