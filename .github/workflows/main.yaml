@@ -70,8 +70,16 @@ jobs:
             --name $AKS_NAME \
             --overwrite-existing
 
+      //# 🚀 DEPLOY TO AKS
+      //- name: Deploy to AKS
+      //  run: |
+      //    kubectl apply -f app/manifest/
+      //    kubectl get pods -A
+      
       # 🚀 DEPLOY TO AKS
-      - name: Deploy to AKS
+      - name: Deploy to AKS using ARGO CD
         run: |
-          kubectl apply -f app/manifest/
-          kubectl get pods -A
+          kubectl apply -f application.yaml
+          kubectl get applications -n argocd
+          kubectl port-forward svc/argocd-server -n argocd 8080:443
+          https://localhost:8080
