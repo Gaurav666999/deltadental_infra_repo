@@ -17,11 +17,9 @@ jobs:
       ACR_NAME: devtodoacrwestus
 
     steps:
-      # ✅ Checkout Code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # ✅ Azure Login
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -29,27 +27,14 @@ jobs:
           tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
-      # ✅ Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      #############################################################
-      # ✅ AUTO FIXES (NO REPO CHANGE)
-      #############################################################
-
-      # Fix variable mismatch (servers_dbs → server_dbs)
       - name: Fix variable mismatch
-        run: |
-          sed -i 's/servers_dbs/server_dbs/g' environments/dev/main.tf
+        run: sed -i 's/servers_dbs/server_dbs/g' environments/dev/main.tf
 
-      # Remove invalid stray text like "ld" from providers.tf
       - name: Fix providers syntax issue
-        run: |
-          sed -i '/^[[:space:]]*ld[[:space:]]*$/d' environments/dev/providers.tf
-
-      #############################################################
-      # ✅ TERRAFORM VALIDATION
-      #############################################################
+        run: sed -i '/^[[:space:]]*ld[[:space:]]*$/d' environments/dev/providers.tf
 
       - name: Terraform Init
         working-directory: environments/dev
@@ -62,10 +47,6 @@ jobs:
       - name: Terraform Plan
         working-directory: environments/dev
         run: terraform plan
-
-      #############################################################
-      # ✅ AKS + ACR VALIDATION
-      #############################################################
 
       - name: Login to ACR
         run: az acr login --name $ACR_NAME
@@ -84,22 +65,15 @@ jobs:
         run: |
           echo "===== NODES ====="
           kubectl get nodes
-
           echo "===== PODS ====="
           kubectl get pods -A
-
           echo "===== SERVICES ====="
           kubectl get svc -A
 
-      #############################################################
-      # ❌ CHANGE-MAKING STEPS (SAFE MODE)
-      #############################################################
-
+      # Dangerous steps (disabled for safety)
       # - name: Terraform Apply
       #   working-directory: environments/dev
       #   run: terraform apply -auto-approve
 
       # - name: Deploy to AKS
-      #   run: |
-      #     kubectl apply -f app/manifest/
-``
+      #   run: kubectl apply -f app/manifest/
