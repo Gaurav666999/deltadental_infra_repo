@@ -1,104 +1,71 @@
 name: Infra Validation + AKS Connectivity
 
 on:
-workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
-id-token: write
-contents: read
+  id-token: write
+  contents: read
 
 jobs:
-infra-validation:
-runs-on: ubuntu-latest
+  infra-validation:
+    runs-on: ubuntu-latest
 
-env:
-  RESOURCE_GROUP: psddg
-  AKS_NAME: devtodoakswestus
-  ACR_NAME: devtodoacrwestus
+    env:
+      RESOURCE_GROUP: psddg
+      AKS_NAME: devtodoakswestus
+      ACR_NAME: devtodoacrwestus
 
-steps:
-  # Checkout Repository
-  - name: Checkout Code
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  # Azure Login using OIDC
-  - name: Azure Login
-    uses: azure/login@v2
-    with:
-      client-id: 6c2702c6-118e-4640-aba9-86e61333ba0d
-      tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
-      subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: 6c2702c6-118e-4640-aba9-86e61333ba0d
+          tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
+          subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
-  # Setup Terraform
-  - name: Setup Terraform
-    uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-  # Terraform Init
-  - name: Terraform Init
-    working-directory: environments/dev
-    run: terraform init
+      - name: Terraform Init
+        working-directory: environments/dev
+        run: terraform init
 
-  # Terraform Validate
-  - name: Terraform Validate
-    working-directory: environments/dev
-    run: terraform validate
+      - name: Terraform Validate
+        working-directory: environments/dev
+        run: terraform validate
 
-  # Terraform Plan
-  - name: Terraform Plan
-    working-directory: environments/dev
-    run: terraform plan
+      - name: Terraform Plan
+        working-directory: environments/dev
+        run: terraform plan
 
-  # Login to Azure Container Registry
-  - name: Login to ACR
-    run: |
-      az acr login --name $ACR_NAME
+      - name: Login to ACR
+        run: az acr login --name $ACR_NAME
 
-  # Install kubectl
-  - name: Install kubectl
-    run: |
-      az aks install-cli
+      - name: Install kubectl
+        run: az aks install-cli
 
-  # Get AKS Credentials
-  - name: Get AKS Credentials
-    run: |
-      az aks get-credentials \
-        --resource-group $RESOURCE_GROUP \
-        --name $AKS_NAME \
-        --overwrite-existing
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group $RESOURCE_GROUP \
+            --name $AKS_NAME \
+            --overwrite-existing
 
-  # Verify Cluster Connectivity
-  - name: Verify AKS Connectivity
-    run: |
-      echo "===== NODES ====="
-      kubectl get nodes
+      - name: Verify AKS Connectivity
+        run: |
+          kubectl get nodes
+          kubectl get pods -A
+          kubectl get svc -A
 
-      echo "===== PODS ====="
-      kubectl get pods -A
+      # Disabled for safety
+      # - name: Terraform Apply
+      #   working-directory: environments/dev
+      #   run: terraform apply -auto-approve
 
-      echo "===== SERVICES ====="
-      kubectl get svc -A
-
-  #############################################################
-  # DANGEROUS / CHANGE-MAKING STEPS - DISABLED
-  #############################################################
-
-  # - name: Terraform Apply
-  #   working-directory: environments/dev
-  #   run: terraform apply -auto-approve
-
-  # - name: Build Docker Images
-  #   run: |
-  #     docker build -t image-name .
-
-  # - name: Push Docker Images
-  #   run: |
-  #     docker push image-name
-
-  # - name: Deploy to AKS
-  #   run: |
-  #     kubectl apply -f app/manifest/
-
-  # - name: Verify Deployment
-  #   run: |
-  #     kubectl get pods -A
-  #     kubectl get svc -A
+      # - name: Deploy to AKS
+      #   run: |
+      #     kubectl apply -f app/manifest/
