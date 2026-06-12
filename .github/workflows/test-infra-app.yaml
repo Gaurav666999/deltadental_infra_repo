@@ -21,7 +21,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # ✅ Azure Login (OIDC)
+      # ✅ Azure Login
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -33,35 +33,46 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # ✅ FIX (TEMP) – variable mismatch without touching repo
-      - name: Fix Terraform variable mismatch
+      #############################################################
+      # ✅ AUTO FIXES (NO REPO CHANGE)
+      #############################################################
+
+      # Fix variable mismatch (servers_dbs → server_dbs)
+      - name: Fix variable mismatch
         run: |
           sed -i 's/servers_dbs/server_dbs/g' environments/dev/main.tf
 
-      # ✅ Terraform Init
+      # Remove invalid stray text like "ld" from providers.tf
+      - name: Fix providers syntax issue
+        run: |
+          sed -i '/^[[:space:]]*ld[[:space:]]*$/d' environments/dev/providers.tf
+
+      #############################################################
+      # ✅ TERRAFORM VALIDATION
+      #############################################################
+
       - name: Terraform Init
         working-directory: environments/dev
         run: terraform init
 
-      # ✅ Terraform Validate
       - name: Terraform Validate
         working-directory: environments/dev
         run: terraform validate
 
-      # ✅ Terraform Plan
       - name: Terraform Plan
         working-directory: environments/dev
         run: terraform plan
 
-      # ✅ Login to ACR
+      #############################################################
+      # ✅ AKS + ACR VALIDATION
+      #############################################################
+
       - name: Login to ACR
         run: az acr login --name $ACR_NAME
 
-      # ✅ Install kubectl
       - name: Install kubectl
         run: az aks install-cli
 
-      # ✅ Get AKS Credentials
       - name: Get AKS Credentials
         run: |
           az aks get-credentials \
@@ -69,7 +80,6 @@ jobs:
             --name $AKS_NAME \
             --overwrite-existing
 
-      # ✅ Verify AKS Connectivity
       - name: Verify AKS Connectivity
         run: |
           echo "===== NODES ====="
@@ -82,7 +92,7 @@ jobs:
           kubectl get svc -A
 
       #############################################################
-      # ❌ DANGEROUS / CHANGE-MAKING STEPS (DISABLED)
+      # ❌ CHANGE-MAKING STEPS (SAFE MODE)
       #############################################################
 
       # - name: Terraform Apply
@@ -92,3 +102,4 @@ jobs:
       # - name: Deploy to AKS
       #   run: |
       #     kubectl apply -f app/manifest/
+``
