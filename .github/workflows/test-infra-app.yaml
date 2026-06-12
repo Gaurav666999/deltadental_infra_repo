@@ -1,0 +1,75 @@
+name: Infra Validation + AKS Connectivity
+
+on:
+push:
+branches:
+- main
+
+workflow_dispatch:
+
+permissions:
+id-token: write
+contents: read
+
+jobs:
+infra-validation:
+runs-on: ubuntu-latest
+
+```
+env:
+  RESOURCE_GROUP: psddg
+  AKS_NAME: devtodoakswestus
+
+steps:
+  - name: Checkout Code
+    uses: actions/checkout@v4
+
+  - name: Azure Login
+    uses: azure/login@v2
+    with:
+      client-id: 6c2702c6-118e-4640-aba9-86e61333ba0d
+      tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
+      subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
+
+  - name: Setup Terraform
+    uses: hashicorp/setup-terraform@v3
+
+  - name: Terraform Init
+    working-directory: environments/dev
+    run: terraform init
+
+  - name: Terraform Validate
+    working-directory: environments/dev
+    run: terraform validate
+
+  - name: Terraform Plan
+    working-directory: environments/dev
+    run: terraform plan
+
+  - name: Install kubectl
+    run: az aks install-cli
+
+  - name: Get AKS Credentials
+    run: |
+      az aks get-credentials \
+        --resource-group $RESOURCE_GROUP \
+        --name $AKS_NAME \
+        --overwrite-existing
+
+  - name: Verify AKS Connectivity
+    run: |
+      kubectl get nodes
+      kubectl get pods -A
+      kubectl get svc -A
+
+  ###############################################################
+  # FUTURE STEPS - KEEP DISABLED FOR NOW
+  ###############################################################
+
+  # - name: Terraform Apply
+  #   working-directory: environments/dev
+  #   run: terraform apply -auto-approve
+
+  # - name: Deploy to AKS
+  #   run: |
+  #     kubectl apply -f app/manifest/
