@@ -1,4 +1,4 @@
-name: Infra Validation + AKS Connectivity   #add infra pipeline
+name: Infra Validation + AKS Connectivity
 
 on:
   push:
