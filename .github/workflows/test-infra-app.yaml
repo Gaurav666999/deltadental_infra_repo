@@ -23,7 +23,6 @@ jobs:
       ACR_NAME: devtodoacrwestus
 
     steps:
-
       # Checkout Repository
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -36,7 +35,7 @@ jobs:
           tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
-      # Install OpenTofu
+      # Setup OpenTofu
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@v1
 
@@ -48,7 +47,7 @@ jobs:
       # Initialize
       - name: OpenTofu Init
         working-directory: environments/dev
-        run: tofu init
+        run: tofu init -input=false
 
       # Validate
       - name: OpenTofu Validate
@@ -64,9 +63,9 @@ jobs:
       # Plan
       - name: OpenTofu Plan
         working-directory: environments/dev
-        run: tofu plan
+        run: tofu plan -input=false
 
-      # Login to ACR
+      # Login to Azure Container Registry
       - name: Login to Azure Container Registry
         run: az acr login --name $ACR_NAME
 
@@ -82,14 +81,14 @@ jobs:
             --name $AKS_NAME \
             --overwrite-existing
 
-      # Verify Cluster
+      # Verify AKS Connectivity
       - name: Verify AKS Connectivity
         run: |
           kubectl get nodes
           kubectl get pods -A
           kubectl get svc -A
 
-      # Keep disabled until explicitly approved
+      # Disabled for Safety
       #
       # - name: OpenTofu Apply
       #   working-directory: environments/dev
