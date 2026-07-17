@@ -2,9 +2,9 @@
 
 
 module "acr" {
-  
-  source     = "../../modules/azurerm_acr"
-  acrs       = var.dev_acrs
+
+  source = "../../modules/azurerm_acr"
+  acrs   = var.dev_acrs
 }
 
 module "aks" {

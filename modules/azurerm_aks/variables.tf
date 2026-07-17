@@ -1,5 +1,5 @@
 variable "aks_var" {
-    type = map(any)
+  type = map(any)
 }
 
 

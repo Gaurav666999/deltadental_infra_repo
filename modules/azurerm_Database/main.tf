@@ -6,6 +6,12 @@ resource "azurerm_mssql_server" "servers" {
   version                      = each.value.version
   administrator_login          = each.value.administrator_login
   administrator_login_password = each.value.administrator_login_password
+
+  lifecycle {
+    ignore_changes = [
+      administrator_login_password
+    ]
+  }
 }
 
 resource "azurerm_mssql_database" "dbs" {
@@ -15,7 +21,11 @@ resource "azurerm_mssql_database" "dbs" {
 }
 
 resource "azurerm_mssql_firewall_rule" "allow_access_to_azure_services" {
-  for_each = { for db_server_name, db_server_details in var.servers_dbs : db_server_name => db_server_details if db_server_details.allow_access_to_azure_services == true }
+  for_each = {
+    for db_server_name, db_server_details in var.servers_dbs :
+    db_server_name => db_server_details
+    if db_server_details.allow_access_to_azure_services == true
+  }
 
   name             = "allow_access_to_azure_services"
   server_id        = azurerm_mssql_server.servers[each.key].id
@@ -24,7 +34,10 @@ resource "azurerm_mssql_firewall_rule" "allow_access_to_azure_services" {
 }
 
 output "db_connection_strings" {
-  value = { for k, v in transpose({ for key, value in var.servers_dbs : key => value.dbs }) : k => "Driver={ODBC Driver 17 for SQL Server};Server=tcp:${v[0]}.database.windows.net,1433;Database=${k};Uid=${var.servers_dbs[v[0]].administrator_login};Pwd=${var.servers_dbs[v[0]].administrator_login_password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;" }
+  value = {
+    for k, v in transpose({ for key, value in var.servers_dbs : key => value.dbs }) :
+    k => "Driver={ODBC Driver 17 for SQL Server};Server=tcp:${v[0]}.database.windows.net,1433;Database=${k};Uid=${var.servers_dbs[v[0]].administrator_login};Pwd=${var.servers_dbs[v[0]].administrator_login_password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+  }
 }
 
 

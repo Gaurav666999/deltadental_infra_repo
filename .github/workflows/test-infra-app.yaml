@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
     paths-ignore:
       - 'app/manifest/**'
 
@@ -24,11 +23,12 @@ jobs:
       ACR_NAME: devtodoacrwestus
 
     steps:
-      # ✅ Checkout Code
+
+      # Checkout Repository
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # ✅ Azure Login
+      # Azure Login (OIDC)
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -36,44 +36,45 @@ jobs:
           tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
-      # ✅ Setup Terraform
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      # Install OpenTofu
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
 
-      # Fix main.tf variable mapping
-      - name: Fix main.tf variable mapping
-        run: |
-          sed -i 's/servers_dbs = var.servers_dbs/server_dbs = var.servers_dbs/g' environments/dev/main.tf
-          sed -i 's/server_dbs = var.server_dbs/server_dbs = var.servers_dbs/g' environments/dev/main.tf
-
-      # Fix module variable usage
-      - name: Fix module variable mismatch
-        run: |
-          sed -i 's/servers_dbs/server_dbs/g' modules/azurerm_Database/main.tf
-
-      # Fix providers.tf garbage text
-      - name: Fix providers syntax issue
-        run: |
-          sed -i '/^[[:space:]]*ld[[:space:]]*$/d' environments/dev/providers.tf
-
-      - name: Terraform Init
+      # Format Check
+      - name: OpenTofu Format Check
         working-directory: environments/dev
-        run: terraform init
+        run: tofu fmt -check -recursive
 
-      - name: Terraform Validate
+      # Initialize
+      - name: OpenTofu Init
         working-directory: environments/dev
-        run: terraform validate
+        run: tofu init
 
-      - name: Terraform Plan
+      # Validate
+      - name: OpenTofu Validate
         working-directory: environments/dev
-        run: terraform plan
+        run: tofu validate
 
-      - name: Login to ACR
+      # Security Scan
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: environments/dev
+
+      # Plan
+      - name: OpenTofu Plan
+        working-directory: environments/dev
+        run: tofu plan
+
+      # Login to ACR
+      - name: Login to Azure Container Registry
         run: az acr login --name $ACR_NAME
 
+      # Install kubectl
       - name: Install kubectl
         run: az aks install-cli
 
+      # Get AKS Credentials
       - name: Get AKS Credentials
         run: |
           az aks get-credentials \
@@ -81,19 +82,15 @@ jobs:
             --name $AKS_NAME \
             --overwrite-existing
 
+      # Verify Cluster
       - name: Verify AKS Connectivity
         run: |
           kubectl get nodes
           kubectl get pods -A
           kubectl get svc -A
 
-      # Disabled for safety
-
-      # - name: Terraform Apply
+      # Keep disabled until explicitly approved
+      #
+      # - name: OpenTofu Apply
       #   working-directory: environments/dev
-      #   run: terraform apply -auto-approve
-
-      # - name: Deploy to AKS
-      #   run: kubectl apply -f app/manifest/
-
-      
+      #   run: tofu apply -auto-approve

@@ -1,5 +1,5 @@
 variable "acrs" {
-    type = map(any)
+  type = map(any)
 }
 
 
