@@ -1,12 +1,6 @@
 name: Build Push and Deploy using ArgoCD
 
 on:
-  workflow_run:
-    workflows:
-      - "Infra Validation + AKS Connectivity"
-    types:
-      - completed
-
   workflow_dispatch:
 
 permissions:
@@ -20,9 +14,6 @@ concurrency:
 jobs:
   build-push-and-deploy:
     name: Build Push and Deploy Application
-
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-
     runs-on: ubuntu-latest
 
     env:

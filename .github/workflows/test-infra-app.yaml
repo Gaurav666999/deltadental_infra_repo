@@ -12,6 +12,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: write
 
 jobs:
   infra-validation:
@@ -96,6 +97,12 @@ jobs:
           kubectl get nodes
           kubectl get pods -A
           kubectl get svc -A
+      - name: Trigger Application Pipeline
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "Build Push and Deploy using ArgoCD"    
 
       # Disabled for Safety
       #
