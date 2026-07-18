@@ -13,135 +13,169 @@ permissions:
   id-token: write
   contents: write
 
-jobs:
-  build-and-deploy:
+concurrency:
+  group: app-deploy-main
+  cancel-in-progress: false
 
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+jobs:
+  build-push-and-deploy:
+    name: Build Push and Deploy Application
+
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     runs-on: ubuntu-latest
 
     env:
-      IMAGE_NAME: add-task
-      IMAGE_NAME1: micro-ui
-
+      IMAGE_NAME_ADD: add-task
+      IMAGE_NAME_UI: micro-ui
       IMAGE_TAG: ${{ github.run_number }}
-      IMAGE_TAG1: ${{ github.run_number }}
 
       ACR_NAME: devtodoacrwestus
       ACR_LOGIN_SERVER: devtodoacrwestus.azurecr.io
 
-    steps:
+      MANIFEST_FILE: app/manifest/deployment.yaml
 
-      ##################################################################
-      # 1. CHECKOUT SOURCE CODE
-      ##################################################################
+    steps:
+      # ==================================================
+      # 1. Checkout Source Code
+      # ==================================================
       - name: Checkout Source Code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      ##################################################################
-      # 2. AZURE LOGIN USING OIDC
-      ##################################################################
-      - name: Azure Login (OIDC)
+      # ==================================================
+      # 2. Azure Login Using OIDC
+      # ==================================================
+      - name: Azure Login Using OIDC
         uses: azure/login@v2
         with:
           client-id: 6c2702c6-118e-4640-aba9-86e61333ba0d
           tenant-id: 1658eae6-9066-4c87-8f0e-22a840432c57
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
-      ##################################################################
-      # 3. LOGIN TO AZURE CONTAINER REGISTRY
-      ##################################################################
+      # ==================================================
+      # 3. Login to Azure Container Registry
+      # ==================================================
       - name: Login to Azure Container Registry
         run: |
           az acr login --name $ACR_NAME
 
-      ##################################################################
-      # 4. BUILD ADD SERVICE IMAGE
-      ##################################################################
-      - name: Build Add Service Image
+      # ==================================================
+      # 4. Build Add Service Docker Image
+      # ==================================================
+      - name: Build Add Service Docker Image
         run: |
           docker build \
-            -t $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG \
+            -t $ACR_LOGIN_SERVER/$IMAGE_NAME_ADD:$IMAGE_TAG \
             -f app/Add/Dockerfile app
 
-      ##################################################################
-      # 5. TRIVY SECURITY SCAN - ADD SERVICE
-      ##################################################################
-      - name: Trivy Scan Add Service Image
-        uses: aquasecurity/trivy-action@0.28.0
+      # ==================================================
+      # 5. Trivy Scan Add Service Docker Image
+      # ==================================================
+      - name: Trivy Scan Add Service Docker Image
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
-          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME_ADD }}:${{ env.IMAGE_TAG }}
           format: table
           severity: HIGH,CRITICAL
           exit-code: '0'
 
-      ##################################################################
-      # 6. PUSH ADD SERVICE IMAGE
-      ##################################################################
-      - name: Push Add Service Image
+      # ==================================================
+      # 6. Push Add Service Docker Image to ACR
+      # ==================================================
+      - name: Push Add Service Docker Image to ACR
         run: |
-          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG
+          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME_ADD:$IMAGE_TAG
 
-      ##################################################################
-      # 7. BUILD MICRO UI IMAGE
-      ##################################################################
-      - name: Build Micro UI Image
+      # ==================================================
+      # 7. Build Micro UI Docker Image
+      # ==================================================
+      - name: Build Micro UI Docker Image
         run: |
           docker build \
-            -t $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1 \
+            -t $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG \
             -f app/Micro/Dockerfile app/Micro
 
-      ##################################################################
-      # 8. TRIVY SECURITY SCAN - MICRO UI
-      ##################################################################
-      - name: Trivy Scan Micro UI Image
-        uses: aquasecurity/trivy-action@0.28.0
+      # ==================================================
+      # 8. Trivy Scan Micro UI Docker Image
+      # ==================================================
+      - name: Trivy Scan Micro UI Docker Image
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
-          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME1 }}:${{ env.IMAGE_TAG1 }}
+          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME_UI }}:${{ env.IMAGE_TAG }}
           format: table
           severity: HIGH,CRITICAL
           exit-code: '0'
 
-      ##################################################################
-      # 9. PUSH MICRO UI IMAGE
-      ##################################################################
-      - name: Push Micro UI Image
+      # ==================================================
+      # 9. Push Micro UI Docker Image to ACR
+      # ==================================================
+      - name: Push Micro UI Docker Image to ACR
         run: |
-          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME1:$IMAGE_TAG1
+          docker push $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG
 
-      ##################################################################
-      # 10. UPDATE KUBERNETES MANIFEST
-      ##################################################################
-      - name: Update Kubernetes Manifest
+      # ==================================================
+      # 10. Update Add Service Image Tag in Kubernetes Manifest
+      # ==================================================
+      - name: Update Add Service Image Tag in Manifest
         run: |
-          sed -i "s|image:.*add-task.*|image: $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG|g" app/manifest/deployment.yaml
+          sed -i "s|image:.*add-task.*|image: $ACR_LOGIN_SERVER/$IMAGE_NAME_ADD:$IMAGE_TAG|g" $MANIFEST_FILE
 
-      ##################################################################
-      # 11. COMMIT UPDATED MANIFEST
-      ##################################################################
-      - name: Commit Manifest Changes
+      # ==================================================
+      # 11. Update Micro UI Image Tag in Kubernetes Manifest
+      # ==================================================
+      - name: Update Micro UI Image Tag in Manifest
+        run: |
+          sed -i "s|image:.*micro-ui.*|image: $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG|g" $MANIFEST_FILE || true
+
+      # ==================================================
+      # 12. Show Updated Kubernetes Manifest
+      # ==================================================
+      - name: Show Updated Kubernetes Manifest
+        run: |
+          cat $MANIFEST_FILE
+
+      # ==================================================
+      # 13. Check Manifest Changes
+      # ==================================================
+      - name: Check Manifest Changes
+        run: |
+          git status
+          git diff -- $MANIFEST_FILE || true
+
+      # ==================================================
+      # 14. Configure Git User
+      # ==================================================
+      - name: Configure Git User
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
 
-          git add app/manifest/deployment.yaml
-
-          git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes"
-
-      ##################################################################
-      # 12. PUSH MANIFEST CHANGES
-      ##################################################################
-      - name: Push Manifest Changes
+      # ==================================================
+      # 15. Commit Updated Kubernetes Manifest
+      # ==================================================
+      - name: Commit Updated Kubernetes Manifest
         run: |
-          git push
+          git add $MANIFEST_FILE
+          git commit -m "Update application image tag to $IMAGE_TAG" || echo "No manifest changes to commit"
 
-      ##################################################################
-      # 13. DEPLOYMENT COMPLETED
-      ##################################################################
-      - name: Deployment Completed
+      # ==================================================
+      # 16. Push Updated Manifest to Main Branch
+      # ==================================================
+      - name: Push Updated Manifest to Main Branch
         run: |
-          echo "Application image pushed to ACR"
-          echo "Manifest updated"
-          echo "ArgoCD will sync automatically"
+          git push origin HEAD:main
+
+      # ==================================================
+      # 17. Deployment Summary
+      # ==================================================
+      - name: Deployment Summary
+        run: |
+          echo "Application pipeline completed successfully"
+          echo "Add Service Image: $ACR_LOGIN_SERVER/$IMAGE_NAME_ADD:$IMAGE_TAG"
+          echo "Micro UI Image: $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG"
+          echo "Manifest updated: $MANIFEST_FILE"
+          echo "ArgoCD will sync automatically from Git"
+          
