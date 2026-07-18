@@ -54,7 +54,16 @@ jobs:
         working-directory: environments/dev
         run: tofu validate
 
-      # Security Scan
+      # Checkov Security Scan
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: environments/dev
+          framework: terraform
+          soft_fail: true
+          output_format: cli
+
+      # tfsec Security Scan
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
