@@ -56,14 +56,21 @@ jobs:
           subscription-id: 20cadb7c-62d8-4c57-9b49-63ebd307c63e
 
       # ==================================================
-      # 3. Login to Azure Container Registry
+      # 3. Verify Azure Login
+      # ==================================================
+      - name: Verify Azure Login
+        run: |
+          az account show --output table
+
+      # ==================================================
+      # 4. Login to Azure Container Registry
       # ==================================================
       - name: Login to Azure Container Registry
         run: |
           az acr login --name $ACR_NAME
 
       # ==================================================
-      # 4. Build Add Service Docker Image
+      # 5. Build Add Service Docker Image
       # ==================================================
       - name: Build Add Service Docker Image
         run: |
@@ -72,25 +79,34 @@ jobs:
             -f app/Add/Dockerfile app
 
       # ==================================================
-      # 5. Trivy Scan Add Service Docker Image
+      # 6. Show Add Service Docker Image
       # ==================================================
-      - name: Trivy Scan Add Service Docker Image
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME_ADD }}:${{ env.IMAGE_TAG }}
-          format: table
-          severity: HIGH,CRITICAL
-          exit-code: '0'
+      - name: Show Add Service Docker Image
+        run: |
+          docker images | grep $IMAGE_NAME_ADD || true
 
       # ==================================================
-      # 6. Push Add Service Docker Image to ACR
+      # 7. Trivy Scan Add Service Image Using Docker
       # ==================================================
-      - name: Push Add Service Docker Image to ACR
+      - name: Trivy Scan Add Service Image
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.65.0 image \
+            --severity HIGH,CRITICAL \
+            --format table \
+            --exit-code 0 \
+            $ACR_LOGIN_SERVER/$IMAGE_NAME_ADD:$IMAGE_TAG
+
+      # ==================================================
+      # 8. Push Add Service Image to ACR
+      # ==================================================
+      - name: Push Add Service Image to ACR
         run: |
           docker push $ACR_LOGIN_SERVER/$IMAGE_NAME_ADD:$IMAGE_TAG
 
       # ==================================================
-      # 7. Build Micro UI Docker Image
+      # 9. Build Micro UI Docker Image
       # ==================================================
       - name: Build Micro UI Docker Image
         run: |
@@ -99,46 +115,75 @@ jobs:
             -f app/Micro/Dockerfile app/Micro
 
       # ==================================================
-      # 8. Trivy Scan Micro UI Docker Image
+      # 10. Show Micro UI Docker Image
       # ==================================================
-      - name: Trivy Scan Micro UI Docker Image
-        uses: aquasecurity/trivy-action@v0.33.1
-        with:
-          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME_UI }}:${{ env.IMAGE_TAG }}
-          format: table
-          severity: HIGH,CRITICAL
-          exit-code: '0'
+      - name: Show Micro UI Docker Image
+        run: |
+          docker images | grep $IMAGE_NAME_UI || true
 
       # ==================================================
-      # 9. Push Micro UI Docker Image to ACR
+      # 11. Trivy Scan Micro UI Image Using Docker
       # ==================================================
-      - name: Push Micro UI Docker Image to ACR
+      - name: Trivy Scan Micro UI Image
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.65.0 image \
+            --severity HIGH,CRITICAL \
+            --format table \
+            --exit-code 0 \
+            $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG
+
+      # ==================================================
+      # 12. Push Micro UI Image to ACR
+      # ==================================================
+      - name: Push Micro UI Image to ACR
         run: |
           docker push $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG
 
       # ==================================================
-      # 10. Update Add Service Image Tag in Kubernetes Manifest
+      # 13. Verify Images in ACR
+      # ==================================================
+      - name: Verify Images in ACR
+        run: |
+          echo "Checking repositories in ACR..."
+          az acr repository list --name $ACR_NAME --output table
+
+          echo "Checking Add Service tags..."
+          az acr repository show-tags \
+            --name $ACR_NAME \
+            --repository $IMAGE_NAME_ADD \
+            --output table || true
+
+          echo "Checking Micro UI tags..."
+          az acr repository show-tags \
+            --name $ACR_NAME \
+            --repository $IMAGE_NAME_UI \
+            --output table || true
+
+      # ==================================================
+      # 14. Update Add Service Image Tag in Kubernetes Manifest
       # ==================================================
       - name: Update Add Service Image Tag in Manifest
         run: |
           sed -i "s|image:.*add-task.*|image: $ACR_LOGIN_SERVER/$IMAGE_NAME_ADD:$IMAGE_TAG|g" $MANIFEST_FILE
 
       # ==================================================
-      # 11. Update Micro UI Image Tag in Kubernetes Manifest
+      # 15. Update Micro UI Image Tag in Kubernetes Manifest
       # ==================================================
       - name: Update Micro UI Image Tag in Manifest
         run: |
           sed -i "s|image:.*micro-ui.*|image: $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG|g" $MANIFEST_FILE || true
 
       # ==================================================
-      # 12. Show Updated Kubernetes Manifest
+      # 16. Show Updated Kubernetes Manifest
       # ==================================================
       - name: Show Updated Kubernetes Manifest
         run: |
           cat $MANIFEST_FILE
 
       # ==================================================
-      # 13. Check Manifest Changes
+      # 17. Check Manifest Changes
       # ==================================================
       - name: Check Manifest Changes
         run: |
@@ -146,7 +191,7 @@ jobs:
           git diff -- $MANIFEST_FILE || true
 
       # ==================================================
-      # 14. Configure Git User
+      # 18. Configure Git User
       # ==================================================
       - name: Configure Git User
         run: |
@@ -154,7 +199,7 @@ jobs:
           git config --global user.name "github-actions"
 
       # ==================================================
-      # 15. Commit Updated Kubernetes Manifest
+      # 19. Commit Updated Kubernetes Manifest
       # ==================================================
       - name: Commit Updated Kubernetes Manifest
         run: |
@@ -162,14 +207,14 @@ jobs:
           git commit -m "Update application image tag to $IMAGE_TAG" || echo "No manifest changes to commit"
 
       # ==================================================
-      # 16. Push Updated Manifest to Main Branch
+      # 20. Push Updated Manifest to Main Branch
       # ==================================================
       - name: Push Updated Manifest to Main Branch
         run: |
           git push origin HEAD:main
 
       # ==================================================
-      # 17. Deployment Summary
+      # 21. Deployment Summary
       # ==================================================
       - name: Deployment Summary
         run: |
@@ -178,4 +223,3 @@ jobs:
           echo "Micro UI Image: $ACR_LOGIN_SERVER/$IMAGE_NAME_UI:$IMAGE_TAG"
           echo "Manifest updated: $MANIFEST_FILE"
           echo "ArgoCD will sync automatically from Git"
-          
